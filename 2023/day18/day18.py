@@ -111,6 +111,7 @@ while currRow <= maxRng[0]:
 
     # Loop over the vert crossings
     totalOverlap = 0
+    timeOverlap = 0
     for i in range(len(vCross)-1):
         # If its inside
         if i % 2 == 0:
@@ -132,8 +133,9 @@ while currRow <= maxRng[0]:
                     # This horz line either starts with our left vert line, or
                     # it ends with our right vert lines. So we will need to remove
                     # the overlaps so they don't get counted twice
-                    numOvelap = hLine[1] - hLine[0]
+                    numOvelap = hLine[1] - hLine[0] +1
                     totalOverlap += numOvelap
+                    timeOverlap += 1
                     
                     # print("\t\t\tHorz line %s overlaps, removing %d duplicates" % (hLine, numOvelap))
                     ans1 = ans1 - numOvelap                    
@@ -149,7 +151,7 @@ while currRow <= maxRng[0]:
                 # ans1 += numInside
                 # print("\t\tFound %d inside (Duplicate for %d rows), newTotal = %d" % (numInside, numDupRows, ans1))
 
-    fillFile.write('%4d: %s - Inside %d, Overlap %d\n' % (currRow, ''.join(rowStr), (ans1 - ansB4), totalOverlap))
+    fillFile.write('%4d: %s - Inside %d, Overlap %d, # time overlap %d\n' % (currRow, ''.join(rowStr), (ans1 - ansB4), totalOverlap, timeOverlap))
     # print("currRow %d, total = %d" % (currRow, ans1))
     print("\tFound %d inside, newTotal = %d (possDups %d)" % (ans1 - ansB4, ans1, numDupRows))
     numDupRows = 1

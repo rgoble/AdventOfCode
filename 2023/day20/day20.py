@@ -1,4 +1,5 @@
-from collections import defaultdict
+from collections import defaultdict,deque
+from math import gcd
 
 class FlipFlop:
     def __init__(self, name) -> None:
@@ -64,38 +65,12 @@ class Broadcast:
     def __repr__(self) -> str:
         return self.name
 
-def pushButton(currMods, debug=False):
-    # low, high
-    pulseCount = [0,0]
-    rxLow = False
-    # pulse is a tuple(src,dest,signal)
-    pulses = [('button','broadcaster',0)]
-
-    while len(pulses) > 0:
-        # make list of next set of pulses
-        if debug: print('== Phase (numPulses = %d) ==' % len(pulses))
-        newPulses = []
-        for src,dest,p in pulses:
-            if debug: print('\t%s - %d => %s' % (src,p,dest))
-
-            # Pt2
-            if p == 0 and dest == 'rx':
-                rxLow = True
-
-            # Update pulse count
-            pulseCount[p] += 1
-            # Grab module
-            if dest in currMods:
-                m = currMods[dest]
-                # Pulse
-                newPulses += m.pulse(src, p)
-            # else:
-            #     print("Warning: module %s doesn't exist" % dest)
-        
-        # update pulses to the new list
-        pulses = newPulses
-
-    return pulseCount, rxLow
+def lcm(cycleCnts):
+    fact = 1
+    for c in cycleCnts:
+        fact = (c*fact)//gcd(c, fact)
+    
+    return fact
 
 M = {}
 # with open("sample2.txt", "rt") as inp:
@@ -121,63 +96,63 @@ with open("input.txt", "rt") as inp:
             # Add module to the dict
             M[m.name] = m
 
-def modState(M):
-    key = sorted(M.keys())
-    return ','.join(['%s=%s' % (k,M[k]) for k in key])
-
 # Need to init all of the modules inputs
 for inpName,inp in M.items():
     for out in inp.dest:
         if out in M:
             M[out].inputs.append(inpName)
 
-i = 0
-pushLimit = 1000
+ans1 = 0
+ans2 = 0
 pCnt = [0,0] # low,High
-initModState = modState(M)
-rxTrigger = pushLimit
+lowCache = {}
+cycles = {}
+# pt2Nodes = ['mq','tz','xf','tg']
+pt2Nodes = ['lh','fk','ff','mm']
+pulses = deque()
+i = 0
+inProgress = True
+while inProgress:
 
-print("initState: %s" % initModState)
-while i < pushLimit:
-    newCnt,rxLow = pushButton(M)
+    # pulse is a tuple(src,dest,signal)
+    pulses.append(('button','broadcaster',0))
+
+    while pulses:
+        src,dest,p = pulses.popleft()
+
+        # Update pulse count
+        pCnt[p] += 1
+
+        # Cache low pulses
+        if p == 0:
+            if dest in pt2Nodes and dest in lowCache:
+                # We can compute the cycle for this node
+                cycles[dest] = i - lowCache[dest]
+                print("%6d: Found cycle for %s => %s" % (i,dest,cycles))
+
+            # Cache low pulses
+            lowCache[dest] = i
+        
+            if len(cycles.keys()) == len(pt2Nodes):
+                # We have seen the cycle for all of the nodes
+                # so calculate # of presses
+                ans2 = lcm(cycles.values())
+                inProgress = False
+                break
+
+        # Grab module
+        if dest in M:
+            m = M[dest]
+            # Pulse
+            newPulses = m.pulse(src, p)
+            for nextP in newPulses:
+                pulses.append(nextP)
+
+    # Increment the button counter
     i += 1
+    if i == 1000:
+        ans1 = pCnt[0]*pCnt[1]
 
-    if rxLow:
-        rxTrigger = min(rxTrigger, i)
-
-    # Count up the number of new pulses
-    for p in range(2):
-        pCnt[p] += newCnt[p]
-    
-    newState = modState(M)
-    # print("%4d: %s newCnt:%s tot:%s" % (i, newState, newCnt, pCnt))
-    if newState == initModState:
-        print("Found initial state after %d presses" % i)
-        # Completed a full cycle of the modules
-        # So we can just skip processing the other presses
-        numCycles = (pushLimit - i) // i
-        print('numCycles = %d' % numCycles)
-        # multiple the number of pulses by num of cycles we are skipping
-        for p in range(2):
-            pCnt[p] += (pCnt[p]*numCycles)
-        
-        # Update the current press count to match what we skipped
-        i += (numCycles * i)
-        
-
-# key = sorted(M.keys())
-# print("Module state: {%s}" % ','.join(['%s=%s' % (k,M[k]) for k in key]))
-# print("\tCycles: %s" % pushButton(M))
-# print("Module state: {%s}" % ','.join(['%s=%s' % (k,M[k]) for k in key]))
-# print("\tCycles: %s" % pushButton(M))
-# print("Module state: {%s}" % ','.join(['%s=%s' % (k,M[k]) for k in key]))
-# print("\tCycles: %s" % pushButton(M))
-# print("Module state: {%s}" % ','.join(['%s=%s' % (k,M[k]) for k in key]))
-# print("\tCycles: %s" % pushButton(M))
-# print("Module state: {%s}" % ','.join(['%s=%s' % (k,M[k]) for k in key]))
-
-ans1 = pCnt[0]*pCnt[1]
-ans2 = rxTrigger
 print('='*8)
-print("Part1: Low=%d,High=%d Total=%d" % (pCnt[0],pCnt[1],ans1))
+print("Part1: %d" % ans1)
 print("Part2: %d" % ans2)        
